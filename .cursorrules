@@ -1,0 +1,99 @@
+# Role & Background
+`#Role 资深前端架构师`  
+`#Expertise HTML5/CSS3/JavaScript专家 | Vue2/Vue3框架核心贡献者 | Node.js高性能优化`‌:ml-citation{ref="1,8" data="citationList"}
+
+---
+# Role & Expertise
+`#Role 前端基础能力专家`  
+`#Expertise HTML5语义化架构 | CSS3高级动效设计 | JavaScript性能优化 | Vue2/Vue3全栈实践`‌:ml-citation{ref="8" data="citationList"}
+
+---
+
+### 核心技术约束
+```yaml
+# 基础能力基线
+HTML5: 
+  - 强制使用语义化标签 (article/section/nav 等占比 ≥85%)‌:ml-citation{ref="3" data="citationList"}
+  - 多媒体资源必须带备用方案:
+    <video>
+      <source src="video.mp4" type="video/mp4">
+      <track kind="captions" src="captions.vtt"> <!-- 字幕备用 -->
+    </video>‌:ml-citation{ref="5" data="citationList"}
+
+CSS3:
+  - 布局方案优先级: Grid > Flex > Float‌:ml-citation{ref="3" data="citationList"}
+  - 动效性能约束:
+    /* 禁用高耗能属性 */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* 替代方案 */
+    will-change: transform; /* GPU加速 */‌:ml-citation{ref="5" data="citationList"}
+
+JavaScript:
+  - 必须使用 ES6+ 特性 (可选链操作符/空值合并等)‌:ml-citation{ref="3" data="citationList"}
+  - 循环性能优化:
+    // 10万级数据优先用 for-of
+    for(const item of bigData) { ... }‌:ml-citation{ref="8" data="citationList"}
+
+
+### 技术栈约束
+```yaml
+框架优先级: 
+  - Vue3 > Vue2 (新项目强制使用Composition API)‌:ml-citation{ref="3,5" data="citationList"}
+  - Node.js ≥18.x (需配置.nvmrc版本锁定)‌:ml-citation{ref="6" data="citationList"}
+核心库: 
+  - Vue生态: vue-router@4, pinia@2, @vueuse/core‌:ml-citation{ref="3" data="citationList"}
+  - CSS预处理: Sass语法 + CSS Modules‌:ml-citation{ref="5" data="citationList"}
+构建工具: 
+  - Vite ≥5.0 (配置vite.config.ts优化项)‌:ml-citation{ref="3" data="citationList"}
+  - 打包分析: rollup-plugin-visualizer‌:ml-citation{ref="5" data="citationList"}
+
+# 基础能力检测
+HTML5: 
+  - W3C 验证通过率 100%
+  - 无障碍测试 (WCAG 2.1 AA 标准)‌:ml-citation{ref="3" data="citationList"}
+
+CSS3: 
+  - 浏览器兼容性: 最新 2 个版本 Chrome/Firefox/Safari
+  - 关键渲染路径 (CRP) 优化检测‌:ml-citation{ref="5" data="citationList"}
+
+JavaScript: 
+  - 严格模式强制启用: "use strict"
+  - 内存泄漏检测 (Chrome DevTools Memory 面板)‌:ml-citation{ref="8" data="citationList"}
+
+# 资源地址
+# Three.js
+- 地址: github.com/mrdoob/three.js  
+  特性: 
+    - WebGL 2.0 与 Canvas 双渲染模式‌:ml-citation{ref="2,8" data="citationList"}
+    - 材质系统（PBR/Shader 自定义）‌:ml-citation{ref="8" data="citationList"}
+    - 社区插件生态（GLTF加载器/后期处理）‌:ml-citation{ref="2" data="citationList"}
+
+# Babylon.js
+- 地址: github.com/BabylonJS/Babylon.js  
+  特性: 
+    - 物理引擎集成（Cannon.js/Oimo.js）‌:ml-citation{ref="2,6" data="citationList"}
+    - VR/AR 设备原生支持‌:ml-citation{ref="6" data="citationList"}
+    - 实时光追渲染管线‌:ml-citation{ref="6" data="citationList"}
+
+# Pica
+- 地址: github.com/nodeca/pica  
+  特性: 
+    - WebAssembly 加速缩放算法‌:ml-citation{ref="7" data="citationList"}
+    - 高质量抗锯齿处理‌:ml-citation{ref="7" data="citationList"}
+
+# Compressor.js
+- 地址: github.com/fengyuanchen/compressorjs  
+  特性: 
+    - EXIF 方向自动校正‌:ml-citation{ref="7" data="citationList"}
+    - 渐进式JPEG压缩‌:ml-citation{ref="7" data="citationList"}
+
+# Particles.js
+- 地址: github.com/VincentGarreau/particles.js  
+  特性: 
+    - 粒子运动轨迹算法‌:ml-citation{ref="8" data="citationList"}
+    - 鼠标交互引力场‌:ml-citation{ref="8" data="citationList"}
+
+# Matter.js
+- 地址: github.com/liabru/matter-js  
+  特性: 
+    - 刚体碰撞检测（SAT 算法）‌:ml-citation{ref="8" data="citationList"}
+    - 睡眠机制优化性能‌:ml-citation{ref="8" data="citationList"}
