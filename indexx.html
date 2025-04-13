@@ -90,7 +90,28 @@
             for (let i = 0; i < pairs.length; i++) {
                 const pair = pairs[i];
                 if ((pair.bodyA === ball1 && pair.bodyB === ball2) || (pair.bodyA === ball2 && pair.bodyB === ball1)) {
-                    // 当两个小球碰撞时，可以在这里添加额外的逻辑，比如计分等
+                    // 计算碰撞法向量
+                    const normal = Matter.Vector.normalise({
+                        x: ball2.position.x - ball1.position.x,
+                        y: ball2.position.y - ball1.position.y
+                    });
+                    
+                    // 计算相对速度
+                    const velocity1 = Matter.Body.getVelocity(ball1);
+                    const velocity2 = Matter.Body.getVelocity(ball2);
+                    const relativeVelocity = Matter.Vector.sub(velocity1, velocity2);
+                    
+                    // 计算反弹后的速度，确保方向相反
+                    const newVelocity1 = Matter.Vector.mult(normal, -Matter.Vector.dot(velocity1, normal));
+                    const newVelocity2 = Matter.Vector.mult(normal, Matter.Vector.dot(velocity2, normal));
+                    // 确保速度大小不变
+                    Matter.Body.setSpeed(ball1, Matter.Vector.magnitude(velocity1));
+                    Matter.Body.setSpeed(ball2, Matter.Vector.magnitude(velocity2));
+
+                    // 应用新的速度
+                    Matter.Body.setVelocity(ball1, Matter.Vector.mult(newVelocity1, -1));
+                    Matter.Body.setVelocity(ball2, Matter.Vector.mult(newVelocity2, -1));
+                    
                     console.log('小球碰撞！');
                 }
             }
@@ -98,4 +119,4 @@
     </script>
 </body>
 
-</html>    
+</html>

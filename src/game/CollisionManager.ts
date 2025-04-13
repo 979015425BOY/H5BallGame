@@ -41,8 +41,12 @@ export class CollisionManager {
 
   private handleBallBallCollision(pair: any) {
     const { bodyA, bodyB } = pair;
-    if ((bodyA.label === 'p1Ball' || bodyA.label === 'p2Ball') && 
-        (bodyB.label === 'p1Ball' || bodyB.label === 'p2Ball')) {
+    
+    // 独立检测小球之间的碰撞
+    const isBallA = bodyA.label === 'p1Ball' || bodyA.label === 'p2Ball';
+    const isBallB = bodyB.label === 'p1Ball' || bodyB.label === 'p2Ball';
+    
+    if (isBallA && isBallB) {
       console.log('Ball-ball collision detected');
       
       // 计算碰撞角度
