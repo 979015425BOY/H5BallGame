@@ -131,6 +131,28 @@ export class GameEngine {
         this.p2BallImage = null;
     };
 
+    // // 初始化尖刺道具图片
+    // this.spikeItemImage = new Image();
+    // this.spikeItemImage.src = '/src/static/png/gear.png';
+    // this.spikeItemImage.onload = () => {
+    //     console.log('尖刺道具图片加载完成');
+    // };
+    // this.spikeItemImage.onerror = () => {
+    //     console.error('尖刺道具图片加载失败');
+    //     this.spikeItemImage = null;
+    // };
+
+    // // 初始化爱心道具图片
+    // this.heartItemImage = new Image();
+    // this.heartItemImage.src = '/src/static/png/love.png';
+    // this.heartItemImage.onload = () => {
+    //     console.log('爱心道具图片加载完成');
+    // };
+    // this.heartItemImage.onerror = () => {
+    //     console.error('爱心道具图片加载失败');
+    //     this.heartItemImage = null;
+    // };
+
     // 初始化 engine
     this.engine = Matter.Engine.create({
       gravity: { x: 0, y: 0 },
@@ -165,6 +187,10 @@ export class GameEngine {
       friction: 0.005,
       frictionAir: 0.0005,
       density: 0.008,
+      // render: {
+      //   fillStyle: '#0088ff',
+      //   strokeStyle: 'transparent'
+      // },
       label: 'p1Ball'
     });
     
@@ -173,6 +199,10 @@ export class GameEngine {
       isStatic: false,
       isSensor: true,
       collisionFilter: { group: -1 },
+      // render: {
+      //   fillStyle: '#0088ff',
+      //   strokeStyle: 'transparent'
+      // },
       label: 'p1BallInner'
     });
     
@@ -188,6 +218,10 @@ export class GameEngine {
       friction: 0.005,
       frictionAir: 0.0005,
       density: 0.008,
+      // render: {
+      //   fillStyle: '#ff4444',
+      //   strokeStyle: 'transparent'
+      // },
       label: 'p2Ball'
     });
     
@@ -196,6 +230,10 @@ export class GameEngine {
       isStatic: false,
       isSensor: true,
       collisionFilter: { group: -1 },
+      // render: {
+      //   fillStyle: '#ff4444',
+      //   strokeStyle: 'transparent'
+      // },
       label: 'p2BallInner'
     });
     
@@ -218,6 +256,7 @@ export class GameEngine {
     // 创建运行器
     this.runner = Matter.Runner.create()
 
+    console.log(this.runner ,'runnerrunnerrunner')
 
     // 设置碰撞检测
     this.setupCollisions()
@@ -249,6 +288,7 @@ export class GameEngine {
         this.renderDefaultBall(this.p2Ball, this.p2BallImage)
       }
     })
+    // this.initEngine()
 
     this.iconCache = new Map()
 
@@ -319,25 +359,50 @@ export class GameEngine {
   private enforceBallSpeed(ball: Matter.Body) {
     const velocity = ball.velocity
     const speed = Math.sqrt(velocity.x * velocity.x + velocity.y * velocity.y)
-    const targetSpeed = 5.5
+
+    // 设置固定速度范围
+    const minSpeed = 4.0
+    const maxSpeed = 7.0
+    const targetSpeed = 5.5 // 目标平衡速度
+
+    if (speed > maxSpeed) {
+      // 如果速度太快，减速到最大速度
+      const scaleFactor = maxSpeed / speed * 0.9 // 额外减速10%
+      Matter.Body.setVelocity(ball, {
+        x: velocity.x * scaleFactor,
+        y: velocity.y * scaleFactor
+      })
+    } else if (speed < minSpeed && speed > 0.1) {
+      // 如果速度太慢，加速到最小速度
+      const scaleFactor = minSpeed / speed * 1.1 // 额外加速10%
+      Matter.Body.setVelocity(ball, {
+        x: velocity.x * scaleFactor,
+        y: velocity.y * scaleFactor
+      })
+    } else if (speed > targetSpeed) {
+      // 如果速度高于目标速度，轻微减速
+      const scaleFactor = 0.95
+      Matter.Body.setVelocity(ball, {
+        x: velocity.x * scaleFactor,
+        y: velocity.y * scaleFactor
+      })
+    } else if (speed < targetSpeed) {
+      // 如果速度低于目标速度，轻微加速
+      const scaleFactor = 1.05
+      Matter.Body.setVelocity(ball, {
+        x: velocity.x * scaleFactor,
+        y: velocity.y * scaleFactor
+      })
+    }
 
     // 如果几乎静止，给一个随机方向的速度
     if (speed < 0.1) {
       const angle = Math.random() * Math.PI * 2
       Matter.Body.setVelocity(ball, {
-        x: Math.cos(angle) * targetSpeed,
-        y: Math.sin(angle) * targetSpeed
+        x: Math.cos(angle) * minSpeed,
+        y: Math.sin(angle) * minSpeed
       })
-      return
     }
-
-    // 直接设置固定速度
-    const scaleFactor = targetSpeed / speed
-    Matter.Body.setVelocity(ball, {
-      x: velocity.x * scaleFactor,
-      y: velocity.y * scaleFactor
-    })
-
   }
 
   private getRandomPowerUpPosition(): { x: number, y: number } {
@@ -393,7 +458,7 @@ export class GameEngine {
     }
 
     // 边框粗细 - 改为更细的边框
-    const thickness = 3; // 从10改为5
+    const thickness = 5; // 从10改为5
 
     // 计算当前边界偏移量
     const offset = this.borderOffset || 0;
@@ -444,7 +509,7 @@ export class GameEngine {
       boundary.label = `boundary-${index}`;
       boundary.isWall = true; // 自定义属性标识墙体
     });
-console.log('监测边界')
+
     // 添加新的边界物体到世界
     Matter.World.add(this.engine.world, this.boundaries);
   }
@@ -461,23 +526,22 @@ console.log('监测边界')
 
   public startBorderShrink() {
     console.log('开始边框缩放');
-    const shrinkDuration = 100000; // 5分钟
+    const shrinkDuration = 200000; // 5分钟
     this.shrinkStartTime = Date.now();
     this.initialBorderOffset = 0;
     this.targetBorderOffset = (this.gameWidth - 50) / 2; // 收缩至50px区域
     this.shrinkDuration = shrinkDuration;
 
     // 移除现有边界
-    // if (this.boundaries.length > 0) {
-    //   Matter.World.remove(this.engine.world, this.boundaries);
-    //   this.boundaries = [];
-    // }
+    if (this.boundaries.length > 0) {
+      Matter.World.remove(this.engine.world, this.boundaries);
+      this.boundaries = [];
+    }
 
     // 立即调用一次更新边界
-    // this.updateBorderOffset();
+    this.updateBorderOffset();
 
-
-
+    // 游戏循环会自动调用updateBorderOffset
   }
 
   // 创建尖刺道具
@@ -675,13 +739,13 @@ console.log('监测边界')
       needsUpdate = true
     }
 
-    // console.log(ball ,'ballball')
+    console.log(ball ,'ballball')
     // 如果需要更新位置
     if (needsUpdate) {
       Matter.Body.setPosition(ball, position)
       Matter.Body.setVelocity(ball, velocity)
       // 确保速度在范围内
-      // this.enforceBallSpeed(ball)
+      this.enforceBallSpeed(ball)
     }
   }
 
@@ -704,17 +768,17 @@ console.log('监测边界')
     }
 
     // 设置定时器，每隔一段时间随机生成一个道具
-    // this.itemSpawnInterval = window.setInterval(() => {
+    this.itemSpawnInterval = window.setInterval(() => {
       // 随机选择要生成的道具类型
-      // const itemType = Math.random() < 0.5 ? 'spike' : 'heart'
+      const itemType = Math.random() < 0.5 ? 'spike' : 'heart'
 
-      // // 检查道具是否不存在且消失时间超过2秒
-      // if (itemType === 'spike' && !this.spikeItem && Date.now() - this.lastSpikeRemovedTime > 2000) {
-      //   this.createSpikeItem()
-      // } else if (itemType === 'heart' && !this.heartItem && Date.now() - this.lastHeartRemovedTime > 2000) {
-      //   this.createHeartItem()
-      // }
-    // }, 5000) // 每5秒尝试生成一次道具
+      // 检查道具是否不存在且消失时间超过2秒
+      if (itemType === 'spike' && !this.spikeItem && Date.now() - this.lastSpikeRemovedTime > 2000) {
+        this.createSpikeItem()
+      } else if (itemType === 'heart' && !this.heartItem && Date.now() - this.lastHeartRemovedTime > 2000) {
+        this.createHeartItem()
+      }
+    }, 5000) // 每5秒尝试生成一次道具
 
     // 另一个定时器，专门用于确保两种道具都有机会生成
     setInterval(() => {
@@ -786,23 +850,23 @@ console.log('监测边界')
       this.createBoundaries();
     }
 
-    // // 更新边界位置，确保覆盖画布边缘和角落
-    // Matter.Body.setPosition(this.boundaries[0], {
-    //   x: size / 2,
-    //   y: 0
-    // });
-    // Matter.Body.setPosition(this.boundaries[1], {
-    //   x: size / 2,
-    //   y: size
-    // });
-    // Matter.Body.setPosition(this.boundaries[2], {
-    //   x: 0,
-    //   y: size / 2
-    // });
-    // Matter.Body.setPosition(this.boundaries[3], {
-    //   x: size,
-    //   y: size / 2
-    // });
+    // 更新边界位置，确保覆盖画布边缘和角落
+    Matter.Body.setPosition(this.boundaries[0], {
+      x: size / 2,
+      y: 0
+    });
+    Matter.Body.setPosition(this.boundaries[1], {
+      x: size / 2,
+      y: size
+    });
+    Matter.Body.setPosition(this.boundaries[2], {
+      x: 0,
+      y: size / 2
+    });
+    Matter.Body.setPosition(this.boundaries[3], {
+      x: size,
+      y: size / 2
+    });
 
     // 更新边界尺寸
     Matter.Body.scale(this.boundaries[0], size / (this.boundaries[0].bounds.max.x - this.boundaries[0].bounds.min.x), 1);
@@ -1024,23 +1088,23 @@ console.log('监测边界')
     this.createBoundaries();
 
     // 动态调整小球位置，确保它们位于画布内
-    // this.balls.forEach(ball => {
-    //   const { position } = ball;
-    //   const radius = ball.circleRadius || 25;
+    this.balls.forEach(ball => {
+      const { position } = ball;
+      const radius = ball.circleRadius || 25;
 
-    //   if (position.x - radius < this.borderOffset) {
-    //     Matter.Body.setPosition(ball, { x: this.borderOffset + radius, y: position.y });
-    //   }
-    //   if (position.x + radius > this.gameWidth - this.borderOffset) {
-    //     Matter.Body.setPosition(ball, { x: this.gameWidth - this.borderOffset - radius, y: position.y });
-    //   }
-    //   if (position.y - radius < this.borderOffset) {
-    //     Matter.Body.setPosition(ball, { x: position.x, y: this.borderOffset + radius });
-    //   }
-    //   if (position.y + radius > this.gameHeight - this.borderOffset) {
-    //     Matter.Body.setPosition(ball, { x: position.x, y: this.gameHeight - this.borderOffset - radius });
-    //   }
-    // });
+      if (position.x - radius < this.borderOffset) {
+        Matter.Body.setPosition(ball, { x: this.borderOffset + radius, y: position.y });
+      }
+      if (position.x + radius > this.gameWidth - this.borderOffset) {
+        Matter.Body.setPosition(ball, { x: this.gameWidth - this.borderOffset - radius, y: position.y });
+      }
+      if (position.y - radius < this.borderOffset) {
+        Matter.Body.setPosition(ball, { x: position.x, y: this.borderOffset + radius });
+      }
+      if (position.y + radius > this.gameHeight - this.borderOffset) {
+        Matter.Body.setPosition(ball, { x: position.x, y: this.gameHeight - this.borderOffset - radius });
+      }
+    });
   }
 
   public startGame() {
