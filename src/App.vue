@@ -16,6 +16,10 @@
           <span class="sidebar-icon">⚙️</span>
           <span class="sidebar-text">游戏配置</span>
         </router-link>
+        <router-link to="/canvas-collision" class="sidebar-item" active-class="sidebar-item--active">
+          <span class="sidebar-icon">🏀</span>
+          <span class="sidebar-text">小球碰撞</span>
+        </router-link>
       </nav>
     </div>
     

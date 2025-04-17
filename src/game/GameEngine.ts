@@ -6,14 +6,41 @@ export class GameEngine {
   private render: Matter.Render
   private runner: Matter.Runner
   private canvas: HTMLCanvasElement
+  private collisionManager: CollisionManager | null = null
   private p1Ball: Matter.Body
   private p2Ball: Matter.Body
   private boundaries: Matter.Body[] = []
   private isRunning: boolean = false
   private onLivesUpdateCallback: ((p1Lives: number, p2Lives: number) => void) | null = null
+
+  // 获取游戏运行状态
+  public getIsRunning(): boolean {
+    return this.isRunning;
+  }
+
+  // 获取物理引擎实例
+  public getEngine(): Matter.Engine {
+    return this.engine;
+  }
+
+  // 获取尖刺道具
+  public getSpikeItem(): Matter.Body | null {
+    return this.spikeItem;
+  }
+
+  // 获取爱心道具
+  public getHeartItem(): Matter.Body | null {
+    return this.heartItem;
+  }
+
+  // 获取边界
+  public getBoundaries(): Matter.Body[] {
+    return this.boundaries;
+  }
   private p1Lives: number = 1  //小球生命值
   private p2Lives: number = 1
   private gameWidth: number
+  private gameHeight: number
   
 
   
@@ -36,6 +63,7 @@ export class GameEngine {
     '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4',
     '#FFEEAD', '#D4A5A5', '#9B59B6', '#3498DB'
   ]
+  private currentBoundaryColor: string = this.boundaryColors[0];
 
   // 添加图片缓存属性
   private imageCache: Record<string, HTMLImageElement> = {}
@@ -46,9 +74,19 @@ export class GameEngine {
   private shrinkStartTime: number | null = null; // 缩小开始时间
 
 
-  private borderOffset: number; // 当前边框线偏移量
-  private initialBorderOffset: number; // 初始边框线偏移量
-  private targetBorderOffset: number; // 目标边框线偏移量（移动到中心）
+  private borderOffset: number = 0; // 当前边框线偏移量
+  private initialBorderOffset: number = 0; // 初始边框线偏移量
+  private targetBorderOffset: number = 0; // 目标边框线偏移量（移动到中心）
+
+  // 获取当前边框偏移量
+  public getBorderOffset(): number {
+    return this.borderOffset;
+  }
+
+  // 获取初始边框偏移量
+  public getInitialBorderOffset(): number {
+    return this.initialBorderOffset;
+  }
 
 
   private balls: Matter.Body[] = []
@@ -89,8 +127,8 @@ export class GameEngine {
     alert(`游戏结束！玩家${loser === 'p1' ? '2' : '1'}获胜！`);
   }
 
-  private p1BallImage: HTMLImageElement;
-  private p2BallImage: HTMLImageElement;
+  private p1BallImage: HTMLImageElement | null;
+  private p2BallImage: HTMLImageElement | null;
 
 
   constructor(canvas: HTMLCanvasElement) {
@@ -162,8 +200,8 @@ export class GameEngine {
     // 创建大圆用于碰撞检测
     const outerBall = Matter.Bodies.circle(xOffset, yOffset, ballRadius, {
       restitution: 0.9,
-      friction: 0.005,
-      frictionAir: 0.0005,
+      friction: 0,
+      frictionAir: 0,
       density: 0.008,
       label: 'p1Ball'
     });
@@ -185,8 +223,8 @@ export class GameEngine {
     // 创建大圆用于碰撞检测
     const outerBall2 = Matter.Bodies.circle(this.gameWidth - xOffset, yOffset, ballRadius, {
       restitution: 0.9,
-      friction: 0.005,
-      frictionAir: 0.0005,
+      friction: 0,
+      frictionAir: 0,
       density: 0.008,
       label: 'p2Ball'
     });
@@ -249,24 +287,19 @@ export class GameEngine {
         this.renderDefaultBall(this.p2Ball, this.p2BallImage)
       }
     })
-
     this.iconCache = new Map()
-
     // 预加载图标
     this.preloadIcons()
-
-
-
   }
 
-  public renderDefaultBall(ball: Matter.Body, ballImage: HTMLImageElement) {
+  public renderDefaultBall(ball: Matter.Body, ballImage: HTMLImageElement | null) {
     if (!ball || !this.render.context) return;
 
     const ctx = this.render.context;
     const pos = ball.position;
     const [outerBall, innerBall] = ball.parts;
-    const outerRadius = outerBall.circleRadius;
-    const innerRadius = innerBall.circleRadius;
+    const outerRadius = outerBall.circleRadius || 20;
+    const innerRadius = innerBall?.circleRadius || outerRadius * 0.7;
 
     // 绘制外圆（碰撞检测用）
     ctx.beginPath();
@@ -653,35 +686,61 @@ console.log('监测边界')
     let velocity = ball.velocity
     let needsUpdate = false
 
-    // 检查水平边界
-    if (position.x < radius + buffer) {
-      position.x = radius + buffer
+    // 考虑边框偏移量
+    const borderOffset = this.borderOffset || 0
+
+    // 检查水平边界，考虑边框偏移
+    if (position.x < borderOffset + radius + buffer) {
+      position.x = borderOffset + radius + buffer
       velocity.x = Math.abs(velocity.x) * 0.95 // 反向，保持大部分速度
+      // 如果边框正在移动，增加额外的速度分量
+      if (borderOffset !== this.initialBorderOffset) {
+        velocity.x += (borderOffset - this.initialBorderOffset) * 0.1
+      }
       needsUpdate = true
-    } else if (position.x > this.gameWidth - radius - buffer) {
-      position.x = this.gameWidth - radius - buffer
+    } else if (position.x > this.gameWidth - borderOffset - radius - buffer) {
+      position.x = this.gameWidth - borderOffset - radius - buffer
       velocity.x = -Math.abs(velocity.x) * 0.95 // 反向，保持大部分速度
+      // 如果边框正在移动，增加额外的速度分量
+      if (borderOffset !== this.initialBorderOffset) {
+        velocity.x -= (borderOffset - this.initialBorderOffset) * 0.1
+      }
       needsUpdate = true
     }
 
-    // 检查垂直边界
-    if (position.y < radius + buffer) {
-      position.y = radius + buffer
+    // 检查垂直边界，考虑边框偏移
+    if (position.y < borderOffset + radius + buffer) {
+      position.y = borderOffset + radius + buffer
       velocity.y = Math.abs(velocity.y) * 0.95 // 反向，保持大部分速度
+      // 如果边框正在移动，增加额外的速度分量
+      if (borderOffset !== this.initialBorderOffset) {
+        velocity.y += (borderOffset - this.initialBorderOffset) * 0.1
+      }
       needsUpdate = true
-    } else if (position.y > this.gameHeight - radius - buffer) {
-      position.y = this.gameHeight - radius - buffer
+    } else if (position.y > this.gameHeight - borderOffset - radius - buffer) {
+      position.y = this.gameHeight - borderOffset - radius - buffer
       velocity.y = -Math.abs(velocity.y) * 0.95 // 反向，保持大部分速度
+      // 如果边框正在移动，增加额外的速度分量
+      if (borderOffset !== this.initialBorderOffset) {
+        velocity.y -= (borderOffset - this.initialBorderOffset) * 0.1
+      }
       needsUpdate = true
     }
 
-    // console.log(ball ,'ballball')
     // 如果需要更新位置
     if (needsUpdate) {
       Matter.Body.setPosition(ball, position)
       Matter.Body.setVelocity(ball, velocity)
-      // 确保速度在范围内
-      // this.enforceBallSpeed(ball)
+      // 创建碰撞效果
+      const collisionSpeed = Math.sqrt(velocity.x * velocity.x + velocity.y * velocity.y)
+      const collisionIntensity = Math.min(1, collisionSpeed / 10)
+      if (this.collisionManager) {
+        this.collisionManager.createCollisionEffect(
+          position.x,
+          position.y,
+          collisionIntensity
+        )
+      }
     }
   }
 
@@ -691,7 +750,7 @@ console.log('监测边界')
        * 该方法会创建一个新的 CollisionManager 实例，并传入当前实例作为参数，用于管理碰撞检测。
        */
   private setupCollisions() {
-    new CollisionManager(this);
+    this.collisionManager = new CollisionManager(this);
   }
 
   // 修改道具生成定时器函数
@@ -737,22 +796,16 @@ console.log('监测边界')
 
     this.isRunning = true
 
-    // 设置固定的初始速度
-    const initialSpeed = 2.5 // 适中的速度
-    const getRandomAngle = () => Math.random() * Math.PI * 2
-
-    // 第一个小球随机方向
-    const angle1 = getRandomAngle()
+    // 初始化时不设置速度，由startGame方法设置相向速度
+    // 将速度设为0，确保游戏开始前小球静止
     Matter.Body.setVelocity(this.p1Ball, {
-      x: Math.cos(angle1) * initialSpeed,
-      y: Math.sin(angle1) * initialSpeed
+      x: 0,
+      y: 0
     })
-
-    // 第二个小球随机方向
-    const angle2 = getRandomAngle()
+    
     Matter.Body.setVelocity(this.p2Ball, {
-      x: Math.cos(angle2) * initialSpeed,
-      y: Math.sin(angle2) * initialSpeed
+      x: 0,
+      y: 0
     })
 
     // 启动物理引擎
@@ -846,6 +899,22 @@ console.log('监测边界')
   }
 
   // 添加在小球上绘制图片的方法
+  private async loadImage(imageUrl: string): Promise<HTMLImageElement> {
+    if (!this.imageCache[imageUrl]) {
+      const img = new Image();
+      img.src = `/src/static/headPortrait/${imageUrl}`;
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = () => {
+          console.error(`Failed to load image: ${imageUrl}`);
+          reject();
+        };
+      });
+      this.imageCache[imageUrl] = img;
+    }
+    return this.imageCache[imageUrl];
+  }
+
   private drawImageOnBall(ball: Matter.Body, imageUrl: string) {
     if (!ball || !this.render.context) return
 
@@ -866,25 +935,10 @@ console.log('监测边界')
       this.imageCache = {}
     }
 
-    if (!this.imageCache[imageUrl]) {
-      const img = new Image()
-      img.src = `/src/static/headPortrait/${imageUrl}`
-      img.onload = () => {
-        // 图片加载完成后重绘
-        if (this.render) {
-          Matter.Render.world(this.render);
-        }
-      };
-      img.onerror = () => {
-        console.error(`Failed to load image: ${imageUrl}`);
-      };
-      this.imageCache[imageUrl] = img
-    }
-
-    const img = this.imageCache[imageUrl]
+    const img = this.imageCache[imageUrl] || null
 
     // 检查图片是否已加载
-    if (img.complete) {
+    if (img && img.complete) {
       // 计算图片绘制尺寸 - 确保正方形且覆盖整个圆
       const size = radius * 2
 
@@ -943,6 +997,15 @@ console.log('监测边界')
         ctx.fillStyle = '#FF0000'
         ctx.fill()
       }
+    } else {
+      // 如果图片未加载，加载图片并在加载完成后重绘
+      this.loadImage(imageUrl).then(() => {
+        if (this.render) {
+          Matter.Render.world(this.render);
+        }
+      }).catch(() => {
+        console.error(`Failed to load image: ${imageUrl}`);
+      });
     }
 
     // 恢复状态
@@ -989,8 +1052,7 @@ console.log('监测边界')
 
 
   private updateBorderOffset() {
-    // console.log('updateBorderOffset called' + this.borderOffset ,this.shrinkStartTime ,this.shrinkDuration)
-    if (this.shrinkStartTime === null || this.shrinkDuration === undefined) {
+    if (this.shrinkStartTime === null || !this.shrinkDuration) {
       return;
     }
 
@@ -1012,39 +1074,50 @@ console.log('监测边界')
       return;
     }
 
-    const elapsedTime = Date.now() - this.shrinkStartTime; // 已过去的时间
-    const progress = Math.min(elapsedTime / this.shrinkDuration, 1); // 缩小进度（0到1）
+    const elapsedTime = Date.now() - this.shrinkStartTime;
+    const progress = Math.min(elapsedTime / this.shrinkDuration, 1);
+
+    // 确保borderOffset和相关值有默认值
+    const currentBorderOffset = this.borderOffset || 0;
+    const currentInitialBorderOffset = this.initialBorderOffset || 0;
+    const currentTargetBorderOffset = this.targetBorderOffset || 0;
 
     // 计算当前边框线偏移量，使用缓动函数使移动更平滑
-    this.borderOffset =
-      this.initialBorderOffset +
-      (this.targetBorderOffset - this.initialBorderOffset) * this.easeInOutQuad(progress);
+    this.borderOffset = currentInitialBorderOffset +
+      (currentTargetBorderOffset - currentInitialBorderOffset) * this.easeInOutQuad(progress);
 
     // 更新边界位置
     this.createBoundaries();
-
-    // 动态调整小球位置，确保它们位于画布内
-    // this.balls.forEach(ball => {
-    //   const { position } = ball;
-    //   const radius = ball.circleRadius || 25;
-
-    //   if (position.x - radius < this.borderOffset) {
-    //     Matter.Body.setPosition(ball, { x: this.borderOffset + radius, y: position.y });
-    //   }
-    //   if (position.x + radius > this.gameWidth - this.borderOffset) {
-    //     Matter.Body.setPosition(ball, { x: this.gameWidth - this.borderOffset - radius, y: position.y });
-    //   }
-    //   if (position.y - radius < this.borderOffset) {
-    //     Matter.Body.setPosition(ball, { x: position.x, y: this.borderOffset + radius });
-    //   }
-    //   if (position.y + radius > this.gameHeight - this.borderOffset) {
-    //     Matter.Body.setPosition(ball, { x: position.x, y: this.gameHeight - this.borderOffset - radius });
-    //   }
-    // });
   }
 
   public startGame() {
     this.isRunning = true;
+    
+    // 设置小球初始速度，使它们相向移动并立即碰撞
+    const initialSpeed = 5; // 提高初始速度以确保快速碰撞
+    
+    // 计算两球之间的向量
+    const p1Pos = this.p1Ball.position;
+    const p2Pos = this.p2Ball.position;
+    
+    // 计算从p1指向p2的单位向量
+    const directionVector = Matter.Vector.normalise({
+      x: p2Pos.x - p1Pos.x,
+      y: p2Pos.y - p1Pos.y
+    });
+    
+    // 设置p1球的速度 - 朝向p2
+    Matter.Body.setVelocity(this.p1Ball, {
+      x: directionVector.x * initialSpeed,
+      y: directionVector.y * initialSpeed
+    });
+    
+    // 设置p2球的速度 - 朝向p1
+    Matter.Body.setVelocity(this.p2Ball, {
+      x: -directionVector.x * initialSpeed,
+      y: -directionVector.y * initialSpeed
+    });
+    
     this.startBorderShrink(); // 游戏开始时启动边界收缩
     Matter.Runner.run(this.runner, this.engine);
   }
@@ -1059,25 +1132,27 @@ console.log('监测边界')
   }
 
 
-  private loadImage(url: string): Promise<HTMLImageElement> {
-    return new Promise((resolve, reject) => {
-      const image = new Image();
-      image.src = url;
-      image.onload = () => resolve(image);
-      image.onerror = reject;
-    });
-  }
+  // private loadImage(url: string): Promise<HTMLImageElement> {
+  //   return new Promise((resolve, reject) => {
+  //     const image = new Image();
+  //     image.src = url;
+  //     image.onload = () => resolve(image);
+  //     image.onerror = reject;
+  //   });
+  // }
 
   public async setBallImage(ball: Matter.Body, imageUrl: string) {
     try {
       const image = await this.loadImage(imageUrl);
-      ball.image = image; // 将图片赋值给小球
+      ball.render.sprite = { texture: imageUrl }; // 使用sprite属性存储图片
     } catch (error) {
       console.error('图片加载失败:', error);
       return null;
     }
-    if (this.ballImage) {
-      console.log('图片加载完成');
+    if (ball === this.p1Ball && this.p1BallImage) {
+      console.log('玩家1图片加载完成');
+    } else if (ball === this.p2Ball && this.p2BallImage) {
+      console.log('玩家2图片加载完成');
     }
   }
 }

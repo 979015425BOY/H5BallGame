@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import IconManager from '@/views/IconManager.vue'
 import BallGame from '@/components/BallGame.vue'
 import GameConfig from '@/views/GameConfig.vue'
+import CanvasCollision from '@/views/CanvasCollision.vue'
 
 const routes = [
   {
@@ -18,6 +19,11 @@ const routes = [
     path: '/game-config',
     name: 'GameConfig',
     component: GameConfig
+  },
+  {
+    path: '/canvas-collision',
+    name: 'CanvasCollision',
+    component: CanvasCollision
   }
 ]
 
