@@ -253,6 +253,7 @@ function drawPowerUp(powerUp: PowerUp) {
 
 // --- 新增：绘制尖刺形状的辅助函数 ---
 function drawSpikeShape(ctx: CanvasRenderingContext2D, x: number, y: number, radius: number, color: string) {
+    if (!ctx) return; // Add null check
     ctx.fillStyle = color;
     ctx.strokeStyle = color;
     ctx.lineWidth = 1;
@@ -282,6 +283,7 @@ function drawSpikeShape(ctx: CanvasRenderingContext2D, x: number, y: number, rad
 
 // --- 新增：绘制心形图案的辅助函数 ---
 function drawHeart(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, color: string) {
+    if (!ctx) return; // Add null check
     ctx.fillStyle = color;
     ctx.beginPath();
     // 调整绘制起点和控制点，使心形视觉上更居中于 (x, y)
@@ -370,6 +372,7 @@ function drawBall(ball: Ball) {
   if (!ctx) return;
 
   const drawInnerContent = () => {
+    if (!ctx) return; // Add null check
     const targetImage = ball.id === 1 ? player1Image.value : player2Image.value;
     const innerRadius = ball.radius * 0.6;
 
@@ -692,60 +695,52 @@ function checkGameOver() {
 
 // --- 修改主绘制循环 ---
 function draw() {
-  if (!ctx || !canvasRef.value) return;
+    if (!ctx || !canvasRef.value) return; // Add null check for ctx
 
-  // 更新旋转角度
-  globalRotation += 0.03; // 更新全局旋转
-  powerUps.forEach((p: PowerUp) => {
-      if (p.type === 'damage') {
-          p.rotation = (p.rotation || 0) + 0.05; // 更新伤害道具自己的旋转
-      }
-  });
+    // 清空画布
+    ctx.clearRect(0, 0, canvasRef.value.width, canvasRef.value.height);
 
-  // 清除画布 (只清除游戏区域)
-  ctx.clearRect(0, 0, canvasRef.value.width, canvasRef.value.height);
+    // 绘制背景或底色 (可选)
+    ctx.fillStyle = '#f0f0f0';
+    ctx.fillRect(0, 0, canvasRef.value.width, canvasRef.value.height);
 
-  // 绘制背景或底色 (可选)
-  ctx.fillStyle = '#f0f0f0';
-  ctx.fillRect(0, 0, canvasRef.value.width, canvasRef.value.height);
+    // 绘制游戏区域边界
+    drawGameArea();
 
-  // 绘制游戏区域边界
-  drawGameArea();
+    // 更新游戏状态
+    updateGame();
 
-  // 更新游戏状态
-  updateGame();
+    // --- 新增：更新和绘制流血粒子 ---
+    for (let i = bloodParticles.length - 1; i >= 0; i--) {
+        const p = bloodParticles[i];
+        p.x += p.dx;
+        p.y += p.dy;
+        p.alpha -= 0.025; // 透明度衰减
+        p.life--;
 
-  // --- 新增：更新和绘制流血粒子 ---
-  for (let i = bloodParticles.length - 1; i >= 0; i--) {
-      const p = bloodParticles[i];
-      p.x += p.dx;
-      p.y += p.dy;
-      p.alpha -= 0.025; // 透明度衰减
-      p.life--;
+        if (p.life <= 0 || p.alpha <= 0) {
+            bloodParticles.splice(i, 1);
+        } else {
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(255, 0, 0, ${p.alpha})`; // 红色，带透明度
+            ctx.fill();
+            ctx.closePath();
+        }
+    }
+    // -------------------------------
 
-      if (p.life <= 0 || p.alpha <= 0) {
-          bloodParticles.splice(i, 1);
-      } else {
-          ctx.beginPath();
-          ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(255, 0, 0, ${p.alpha})`; // 红色，带透明度
-          ctx.fill();
-          ctx.closePath();
-      }
-  }
-  // -------------------------------
+    // 绘制玩家小球
+    if (player1.value) drawBall(player1.value); // 使用 .value
+    if (player2.value) drawBall(player2.value); // 使用 .value
 
-  // 绘制玩家小球
-  if (player1.value) drawBall(player1.value); // 使用 .value
-  if (player2.value) drawBall(player2.value); // 使用 .value
+    // 绘制道具
+    powerUps.forEach(drawPowerUp);
 
-  // 绘制道具
-  powerUps.forEach(drawPowerUp);
-
-  // 如果游戏未结束，请求下一帧
-  if (!gameOver.value) {
-    animationFrameId = requestAnimationFrame(draw);
-  }
+    // 如果游戏未结束，请求下一帧
+    if (!gameOver.value) {
+        animationFrameId = requestAnimationFrame(draw);
+    }
 }
 
 // --- 新增：调整画布和游戏区域大小 ---
