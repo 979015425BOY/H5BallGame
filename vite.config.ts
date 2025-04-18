@@ -14,6 +14,7 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src')
     }
   },
+  assetsInclude: ['**/*.WAV'], // 添加这一行来处理 WAV 文件
   css: {
     preprocessorOptions: {
       scss: {
@@ -39,4 +40,4 @@ export default defineConfig({
       }
     }
   }
-}) 
+})

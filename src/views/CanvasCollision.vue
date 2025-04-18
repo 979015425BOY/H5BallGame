@@ -33,12 +33,24 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, reactive, watch, nextTick } from 'vue';
+import borderHitSound from '@/assets/sounds/音频6.WAV'; // 边界/普通碰撞
+import ballHitSound from '@/assets/sounds/音频6.WAV';     // 边界/普通碰撞
+import healPickupSound from '@/assets/sounds/音频7.WAV'; // 治疗拾取
+import damagePickupSound from '@/assets/sounds/音频6.WAV';// 伤害拾取 (使用碰撞音)
+import damageHitSound from '@/assets/sounds/音频6.WAV';   // 伤害碰撞 (使用碰撞音)
 import { useWindowSize } from '@vueuse/core'; // 导入 useWindowSize
 
 // --- 新增：玩家头像图片引用 ---
 const player1Image = ref<HTMLImageElement | null>(null);
 const player2Image = ref<HTMLImageElement | null>(null);
 // ---------------------------
+
+// --- 新增：播放音效函数 ---
+function playSound(soundFile: string) {
+  const audio = new Audio(soundFile);
+  audio.play().catch(error => console.error("Error playing sound:", error));
+}
+// -------------------------
 
 // --- 新增：流血粒子接口 ---
 interface BloodParticle {
@@ -511,20 +523,24 @@ function updateBall(ball: Ball) {
     if (ball.x + ball.radius > rightBoundary) {
         ball.x = rightBoundary - ball.radius;
         ball.dx = -ball.dx;
+    playSound(borderHitSound); // 播放边界碰撞音效
         hitBoundary = true;
     } else if (ball.x - ball.radius < leftBoundary) {
         ball.x = leftBoundary + ball.radius;
         ball.dx = -ball.dx;
+    playSound(borderHitSound); // 播放边界碰撞音效
         hitBoundary = true;
     }
 
     if (ball.y + ball.radius > bottomBoundary) {
         ball.y = bottomBoundary - ball.radius;
         ball.dy = -ball.dy;
+    playSound(borderHitSound); // 播放边界碰撞音效
         hitBoundary = true;
     } else if (ball.y - ball.radius < topBoundary) {
         ball.y = topBoundary + ball.radius;
         ball.dy = -ball.dy;
+    playSound(borderHitSound); // 播放边界碰撞音效
         hitBoundary = true;
     }
 
@@ -548,6 +564,7 @@ function checkPowerUpCollision(ball: Ball) {
             // 拾取道具
             if (powerUp.type === 'damage') {
                 ball.hasDamagePowerUp = true;
+                playSound(damagePickupSound); // 播放伤害道具拾取音效
                 // --- 新增：移除对方的伤害道具效果 ---
                 const otherPlayer = ball.id === 1 ? player2.value : player1.value;
                 if (otherPlayer) {
@@ -556,6 +573,7 @@ function checkPowerUpCollision(ball: Ball) {
                 // -------------------------------------
             } else if (powerUp.type === 'heal') {
                 ball.hp = Math.min(initialHp, ball.hp + 1); // 回复1点HP，不超过上限
+                playSound(healPickupSound); // 播放治疗道具拾取音效
             }
             powerUps.splice(i, 1); // 移除道具
             // 拾取后立即生成一个新道具
@@ -589,6 +607,13 @@ function resolveCollision(ball1: Ball, ball2: Ball) {
   const minDistance = ball1.radius + ball2.radius;
 
   if (distance < minDistance) {
+    // --- 新增：播放碰撞音效 ---
+    if (ball1.hasDamagePowerUp || ball2.hasDamagePowerUp) {
+      playSound(damageHitSound); // 播放割裂音效
+    } else {
+      playSound(ballHitSound); // 播放普通碰撞音效
+    }
+    // -------------------------
     let damageDealt = false; // 标记是否造成了伤害
     const collisionX = ball1.x + dx / 2; // 碰撞点 X
     const collisionY = ball1.y + dy / 2; // 碰撞点 Y
