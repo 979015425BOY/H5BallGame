@@ -39,10 +39,14 @@ import healPickupSound from '@/assets/sounds/音频7.WAV'; // 治疗拾取
 import damagePickupSound from '@/assets/sounds/音频6.WAV';// 伤害拾取 (使用碰撞音)
 import damageHitSound from '@/assets/sounds/音频6.WAV';   // 伤害碰撞 (使用碰撞音)
 import { useWindowSize } from '@vueuse/core'; // 导入 useWindowSize
+import player1Head from '@/static/headPortrait/t1.jpg'; // 导入玩家1头像
+import player2Head from '@/static/headPortrait/t2.jpg'; // 导入玩家2头像
+import heartSvg from '@/static/svg/love.svg'; // <-- 新增：导入心形 SVG
 
 // --- 新增：玩家头像图片引用 ---
 const player1Image = ref<HTMLImageElement | null>(null);
 const player2Image = ref<HTMLImageElement | null>(null);
+const heartImage = ref<HTMLImageElement | null>(null); // <-- 新增：心形图片引用
 // ---------------------------
 
 // --- 新增：播放音效函数 ---
@@ -139,7 +143,7 @@ function initGame(canvasWidth: number, canvasHeight: number) {
   lastPowerUpSpawnTime = Date.now();
 
   // --- 半径可以根据画布大小调整 (可选) ---
-  const baseRadius = Math.min(canvasWidth, canvasHeight) * 0.05; // 增加基础半径比例
+  const baseRadius = Math.min(canvasWidth, canvasHeight) * 0.04; // 增加基础半径比例
   const radius = Math.max(20, baseRadius); // 增加最小半径
 
   // --- 调整初始位置以适应中心区域 (使用 gameArea 的值) ---
@@ -185,7 +189,7 @@ function spawnPowerUp() {
   if (availableTypes.length === 0) return; // 没有可生成的类型
   // ----------------------------------
 
-  const radius = Math.max(10, gameArea.size * 0.025); // 道具半径也适配
+  const radius = Math.max(8, gameArea.size * 0.025); // 道具半径也适配
   let x, y, overlapping;
   let attempts = 0;
   const halfSize = gameArea.size / 2;
@@ -261,8 +265,20 @@ function drawPowerUp(powerUp: PowerUp) {
     ctx.restore(); // 恢复状态
 
   } else if (powerUp.type === 'heal') {
-    // 绘制居中的心形图案 (使用道具半径调整大小)
-    drawHeart(ctx, powerUp.x, powerUp.y, powerUp.radius * 1.2, 'red'); // 稍微放大心形以填充原背景区域，颜色固定为红
+    // <-- 修改：绘制心形图片 -->
+    if (heartImage.value) {
+        const drawSize = powerUp.radius * 2; // 图片绘制大小，基于道具半径
+        ctx.drawImage(heartImage.value, powerUp.x - powerUp.radius, powerUp.y - powerUp.radius, drawSize, drawSize);
+    } else {
+        // 后备方案：如果图片未加载，可以绘制一个简单的圆圈或不绘制
+        ctx.beginPath();
+        ctx.arc(powerUp.x, powerUp.y, powerUp.radius, 0, Math.PI * 2);
+        ctx.fillStyle = powerUpColors.heal; // 使用治疗道具颜色
+        ctx.fill();
+        ctx.closePath();
+    }
+    // <-- 移除旧的 drawHeart 调用 -->
+    // drawHeart(ctx, powerUp.x, powerUp.y, powerUp.radius * 1.2, 'red');
   }
 }
 
@@ -297,6 +313,7 @@ function drawSpikeShape(ctx: CanvasRenderingContext2D, x: number, y: number, rad
 }
 
 // --- 新增：绘制心形图案的辅助函数 ---
+/*
 function drawHeart(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, color: string) {
     if (!ctx) return; // Add null check
     ctx.fillStyle = color;
@@ -319,6 +336,7 @@ function drawHeart(ctx: CanvasRenderingContext2D, x: number, y: number, size: nu
     ctx.closePath();
     ctx.fill();
 }
+*/
 
 // --- 绘制游戏区域边界 ---
 let gameAreaHue = 0; // 新增：用于边框颜色循环
@@ -389,7 +407,7 @@ function drawBall(ball: Ball) {
   const drawInnerContent = () => {
     if (!ctx) return; // Add null check
     const targetImage = ball.id === 1 ? player1Image.value : player2Image.value;
-    const innerRadius = ball.radius * 0.6;
+    const innerRadius = ball.radius * 0.8;
 
     if (targetImage) {
       // 如果图片已加载，绘制图片
@@ -412,10 +430,7 @@ function drawBall(ball: Ball) {
 
   if (ball.hasDamagePowerUp) {
     // 持有伤害道具：绘制旋转尖刺外圈 + 内部内容
-    // 1. 绘制内部内容 (图片或后备内圆)
-    drawInnerContent();
-
-    // 2. 绘制旋转的尖刺外圈 (替换原来的外圆)
+    // 1. 绘制旋转的尖刺外圈 (替换原来的外圆)
     ctx.save();
     ctx.translate(ball.x, ball.y);
     ctx.rotate(globalRotation); // 使用全局旋转变量
@@ -423,6 +438,9 @@ function drawBall(ball: Ball) {
     // 使用玩家颜色绘制尖刺，半径为外圆半径
     drawSpikeShape(ctx, ball.x, ball.y, ball.radius, ball.color);
     ctx.restore();
+
+    // 2. 绘制内部内容 (图片或后备内圆) - 移动到尖刺之后绘制
+    drawInnerContent();
 
   } else {
     // 正常状态：绘制外圆和内部内容
@@ -488,7 +506,7 @@ function updateGame() {
   // --- 新增：更新道具旋转 ---
   powerUps.forEach(p => {
       if (p.type === 'damage' && p.rotation !== undefined) {
-          p.rotation += 0.05; // 控制伤害道具旋转速度
+          p.rotation += 0.2; // 控制伤害道具旋转速度
       }
   });
   // -------------------------
@@ -728,9 +746,7 @@ function draw() {
     // 清空画布
     ctx.clearRect(0, 0, canvasRef.value.width, canvasRef.value.height);
 
-    // 绘制背景或底色 (可选)
-    ctx.fillStyle = '#f0f0f0';
-    ctx.fillRect(0, 0, canvasRef.value.width, canvasRef.value.height);
+    // 背景色已移除，使其透明
 
     // 绘制游戏区域边界
     drawGameArea();
@@ -825,11 +841,35 @@ onMounted(() => {
   if (canvasRef.value && canvasContainerRef.value) { // 检查 container ref
     ctx = canvasRef.value.getContext('2d');
     if (ctx) {
-      // 初始调整一次画布大小
-      resizeCanvas();
-      // 不再在这里调用 initGame 和 draw，因为 resizeCanvas 会调用
-      // initGame(canvasRef.value.width, canvasRef.value.height);
-      // draw();
+      // --- 新增：加载玩家头像 ---
+      const loadImage = (src: string): Promise<HTMLImageElement> => {
+        return new Promise((resolve, reject) => {
+          const img = new Image();
+          img.onload = () => resolve(img);
+          img.onerror = reject;
+          img.src = src;
+        });
+      };
+
+      // 使用 IIFE (Immediately Invoked Function Expression) 来允许 await
+      (async () => {
+        try {
+          player1Image.value = await loadImage(player1Head);
+          player2Image.value = await loadImage(player2Head);
+          // <-- 新增：加载心形图片 -->
+          heartImage.value = await loadImage(heartSvg);
+          console.log('Player images loaded successfully.'); // 添加日志确认加载
+          // 图片加载成功后才调整大小并开始游戏，确保图片可用
+          resizeCanvas();
+        } catch (error) {
+          console.error("Error loading player images:", error);
+          // 即使图片加载失败，也继续调整大小并开始游戏
+          resizeCanvas();
+        }
+      })();
+      // -------------------------
+      // 初始调整一次画布大小 (移动到 async IIFE 内部)
+      // resizeCanvas();
     } else {
       console.error('无法获取 2D 上下文');
     }
@@ -914,19 +954,14 @@ onUnmounted(() => {
   margin-bottom: 15px; /* 与下方内容间距 */
 }
 
+/* --- 新增：设置 Canvas 背景色 --- */
 canvas {
-  border: 1px solid #ccc;
-  /* background-color: #f0f0f0; */ /* 背景色在draw中绘制 */
-  /* margin-top: 15px; */ /* 因为上面加了hp bar container，这个可以移除或调整 */
- display: block; /* 消除下方空隙 */
- max-width: 100%; /* 确保不超过容器 */
- height: auto; /* 高度自适应，由JS控制 */
- /* position: absolute; */ /* 如果使用 padding-bottom 技巧 */
- /* top: 0; */
- /* left: 0; */
- /* width: 100%; */
- /* height: 100%; */
+  display: block; /* 移除默认的 inline 空白 */
+  width: 100%; /* 宽度填充容器 */
+  height: 100%; /* 高度填充容器 */
+  background-color: #121212; /* 设置背景色 */
 }
+/* ----------------------------- */
 
 h1 {
   margin-bottom: 10px;
@@ -950,7 +985,7 @@ h1 {
     left: 50%;
    transform: translate(-50%, -50%);
    transform: translate(-50%, -100%); /* 向上偏移一点，避免挡住画布中心 */
-    background-color: rgba(0, 0, 0, 0.7);
+    /* background-color: rgba(0, 0, 0, 0.7); */
     color: white;
     padding: 20px 40px;
     border-radius: 10px;
@@ -1014,199 +1049,3 @@ h1 {
   }
 }
 </style>
-
-// --- 新增：碎裂粒子接口 ---
-interface ShatterParticle {
-  x: number;
-  y: number;
-  dx: number;
-  dy: number;
-  radius: number;
-  color: string;
-  alpha: number;
-  life: number; // 剩余生命周期
-  initialDistance: number; // 初始距离 (用于计算扩散范围)
-  maxDistance: number; // 最大扩散距离
-}
-
-// --- 新增：创建碎裂粒子 ---
-function createShatterParticles(loserBall: Ball) {
-  const numParticles = 100;
-  const baseSpeed = 3; // 基础扩散速度
-  const particleRadius = 2;
-  const maxDistance = loserBall.baseRadius * 5; // 扩散到原半径5倍
-
-  for (let i = 0; i < numParticles; i++) {
-    const angle = Math.random() * Math.PI * 2;
-    const speed = baseSpeed + Math.random() * 2; // 速度略有随机
-    const color = `hsl(${Math.random() * 360}, 100%, 50%)`; // 随机颜色
-
-    shatterParticles.push({
-      x: loserBall.x,
-      y: loserBall.y,
-      dx: Math.cos(angle) * speed,
-      dy: Math.sin(angle) * speed,
-      radius: particleRadius,
-      color: color,
-      alpha: 1,
-      life: 60, // 粒子持续帧数 (可调整)
-      initialDistance: 0, // 初始距离为0
-      maxDistance: maxDistance,
-    });
-  }
-}
-
-// --- 修改游戏结束检测 ---
-function checkGameOver() {
-    // 如果正在碎裂或已经结束，则不执行
-    if (isShattering.value || gameOver.value) return;
-
-    let loser: Ball | null = null;
-    let winnerName: string | null = null;
-
-    if (player1.value && player1.value.hp <= 0) {
-        loser = player1.value;
-        winnerName = '玩家2';
-    } else if (player2.value && player2.value.hp <= 0) {
-        loser = player2.value;
-        winnerName = '玩家1';
-    }
-
-    if (loser) {
-        isShattering.value = true; // 开始碎裂动画
-        winner.value = winnerName; // 先记录胜利者
-        createShatterParticles(loser); // 创建粒子
-        // 注意：不再立即设置 gameOver 和 cancelAnimationFrame
-        // 游戏主逻辑（移动、碰撞）将在 draw 函数中根据 isShattering 状态暂停
-    }
-}
-
-// --- 修改主绘制循环 ---
-function draw() {
-    if (!ctx || !canvasRef.value) return; // Add null check for ctx
-
-    // 清空画布
-    ctx.clearRect(0, 0, canvasRef.value.width, canvasRef.value.height);
-
-    // 绘制背景或底色 (可选)
-    ctx.fillStyle = '#f0f0f0';
-    ctx.fillRect(0, 0, canvasRef.value.width, canvasRef.value.height);
-
-    // 绘制游戏区域边界
-    drawGameArea();
-
-    // --- 如果正在碎裂 --- 
-    if (isShattering.value) {
-        // 更新和绘制碎裂粒子
-        for (let i = shatterParticles.length - 1; i >= 0; i--) {
-            const p = shatterParticles[i];
-            p.x += p.dx;
-            p.y += p.dy;
-            p.life--;
-            // 计算当前距离中心的距离，简单用 life 模拟扩散效果和消失
-            const currentDistance = p.maxDistance * (1 - p.life / 60); // 假设初始 life 为 60
-
-            // 当粒子生命结束或达到最大距离时，降低透明度直至消失
-            if (p.life <= 0 || currentDistance >= p.maxDistance) {
-                p.alpha -= 0.05; // 透明度快速衰减
-            }
-
-            if (p.alpha <= 0) {
-                shatterParticles.splice(i, 1);
-            } else {
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-                ctx.fillStyle = p.color; // 使用粒子自身颜色
-                ctx.globalAlpha = p.alpha; // 应用透明度
-                ctx.fill();
-                ctx.closePath();
-                ctx.globalAlpha = 1; // 重置全局透明度
-            }
-        }
-
-        // 如果所有碎裂粒子都消失了
-        if (shatterParticles.length === 0) {
-            isShattering.value = false; // 结束碎裂状态
-            gameOver.value = true; // 正式设置游戏结束
-            cancelAnimationFrame(animationFrameId); // 停止动画循环
-            // 此时 winner.value 已经被设置，游戏结束信息会显示
-        }
-    } else if (!gameOver.value) { // --- 如果游戏正常进行中 (未碎裂且未结束) ---
-        // 更新游戏状态 (移动、碰撞等)
-        updateGame();
-
-        // --- 更新和绘制流血粒子 ---
-        for (let i = bloodParticles.length - 1; i >= 0; i--) {
-            const p = bloodParticles[i];
-            p.x += p.dx;
-            p.y += p.dy;
-            p.alpha -= 0.025; // 透明度衰减
-            p.life--;
-
-            if (p.life <= 0 || p.alpha <= 0) {
-                bloodParticles.splice(i, 1);
-            } else {
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-                ctx.fillStyle = `rgba(255, 0, 0, ${p.alpha})`; // 红色，带透明度
-                ctx.fill();
-                ctx.closePath();
-            }
-        }
-        // -------------------------------
-
-        // 绘制玩家小球 (只有在非碎裂状态下绘制)
-        if (player1.value && player1.value.hp > 0) drawBall(player1.value); // 使用 .value, 检查 hp
-        if (player2.value && player2.value.hp > 0) drawBall(player2.value); // 使用 .value, 检查 hp
-
-        // 绘制道具
-        powerUps.forEach(drawPowerUp);
-    }
-
-    // 如果游戏未结束 (包括碎裂动画期间)，请求下一帧
-    if (!gameOver.value) {
-        animationFrameId = requestAnimationFrame(draw);
-    }
-}
-
-// --- 新增：开始游戏函数 ---
-function startGame() {
-  if (!isGameStarted.value) {
-    isGameStarted.value = true;
-    // 确保 canvas 和 context 已准备好
-    nextTick(() => {
-      if (canvasRef.value && !ctx) {
-        ctx = canvasRef.value.getContext('2d');
-      }
-      if (ctx) {
-        // 可能需要重新初始化游戏状态或确保状态正确
-        // initGame(canvasRef.value.width, canvasRef.value.height); // 如果需要重置
-        resizeCanvas(); // 确保尺寸正确
-        if (!animationFrameId) { // 防止重复启动
-           animationFrameId = requestAnimationFrame(draw);
-        }
-      }
-    });
-  }
-}
-
-// --- 修改挂载逻辑 ---
-onMounted(async () => {
-  // ... (加载图片等)
-  await loadImages();
-
-  // 调整画布大小以适应容器
-  resizeCanvas();
-
-  // 添加窗口大小变化监听器
-  window.addEventListener('resize', resizeCanvas);
-
-  // 不再自动开始游戏，等待按钮点击
-  // if (canvasRef.value) {
-  //   ctx = canvasRef.value.getContext('2d');
-  //   if (ctx) {
-  //     initGame(canvasRef.value.width, canvasRef.value.height);
-  //     animationFrameId = requestAnimationFrame(draw);
-  //   }
-  // }
-});

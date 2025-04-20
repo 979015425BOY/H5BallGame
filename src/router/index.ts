@@ -5,11 +5,11 @@ import GameConfig from '@/views/GameConfig.vue'
 import CanvasCollision from '@/views/CanvasCollision.vue'
 
 const routes = [
-  {
-    path: '/',
-    name: 'BallGame',
-    component: BallGame
-  },
+  // {
+  //   path: '/',
+  //   name: 'BallGame',
+  //   component: BallGame
+  // },
   {
     path: '/icon-manager',
     name: 'IconManager',
@@ -21,7 +21,7 @@ const routes = [
     component: GameConfig
   },
   {
-    path: '/canvas-collision',
+    path: '/',
     name: 'CanvasCollision',
     component: CanvasCollision
   }
