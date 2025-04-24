@@ -8,18 +8,18 @@
           <span class="sidebar-icon">🎮</span>
           <span class="sidebar-text">球球游戏</span>
         </router-link>
-        <router-link to="/icon-manager" class="sidebar-item" active-class="sidebar-item--active">
+        <!-- <router-link to="/icon-manager" class="sidebar-item" active-class="sidebar-item--active">
           <span class="sidebar-icon">🖼️</span>
           <span class="sidebar-text">图标管理</span>
-        </router-link>
+        </router-link> -->
         <router-link to="/game-config" class="sidebar-item" active-class="sidebar-item--active">
           <span class="sidebar-icon">⚙️</span>
           <span class="sidebar-text">游戏配置</span>
         </router-link>
-        <router-link to="/canvas-collision" class="sidebar-item" active-class="sidebar-item--active">
+        <!-- <router-link to="/canvas-collision" class="sidebar-item" active-class="sidebar-item--active">
           <span class="sidebar-icon">🏀</span>
           <span class="sidebar-text">小球碰撞</span>
-        </router-link>
+        </router-link> -->
       </nav>
     </div>
     

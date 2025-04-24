@@ -1,12 +1,28 @@
 import Matter from 'matter-js';
+import { useGameStore } from '@/stores/gameStore';
 
 export const createHeartItem = (x: number, y: number) => {
-  const itemSize = 15; // 固定尺寸为15px
+  const gameStore = useGameStore();
+  const config = gameStore.config;
+  const itemSize = config.heartItemSize;
   const heartX = x + Math.random() * 100 - 50;
   const heartY = y + Math.random() * 100 - 50;
   
   const heartImage = new Image();
-  heartImage.src = '/src/static/png/love.png';
+  heartImage.src = config.heartItemImage;
+  
+  // 确保图片加载完成
+  heartImage.onload = () => {
+    Matter.Body.set(heartItem, {
+      render: {
+        sprite: {
+          texture: heartImage.src,
+          xScale: 0.1,
+          yScale: 0.1
+        }
+      }
+    });
+  };
   
   return Matter.Bodies.rectangle(heartX, heartY, itemSize, itemSize, {
     isStatic: true,
@@ -29,12 +45,14 @@ export const createHeartItem = (x: number, y: number) => {
 };
 
 export const createSpikeItem = (x: number, y: number) => {
-  const itemSize = 20; // 固定尺寸为20px
+  const gameStore = useGameStore();
+  const config = gameStore.config;
+  const itemSize = config.spikeItemSize;
   const spikeX = x + Math.random() * 80 - 40;
   const spikeY = y + Math.random() * 80 - 40;
   
   const spikeImage = new Image();
-  spikeImage.src = '/src/static/png/gear.png';
+  spikeImage.src = config.spikeItemImage;
   
   const item = Matter.Bodies.rectangle(spikeX, spikeY, itemSize, itemSize, {
     isStatic: true,

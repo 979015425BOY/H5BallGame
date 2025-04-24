@@ -1,22 +1,23 @@
 <template>
   <div class="canvas-collision-container">
-    <h1>小球对战</h1>
+    <h1 style="color:#fff">小球对战</h1>
     <!-- 新增 HP 条容器 -->
     <div class="hp-bars-container">
       <div class="player-hp-bar">
-        <div class="player-name">玩家1</div>
+        <div class="player-name">{{ gameStore.config.player1Name }}</div>
         <div class="hp-bar">
           <div v-for="i in initialHp" :key="`p1-${i}`" class="hp-segment player1" :class="{ active: player1 && i <= player1.hp }" />
         </div>
       </div>
       <div class="player-hp-bar">
-        <div class="player-name">玩家2</div>
+        <div class="player-name">{{ gameStore.config.player2Name }}</div>
         <div class="hp-bar">
           <div v-for="i in initialHp" :key="`p2-${i}`" class="hp-segment player2" :class="{ active: player2 && i <= player2.hp }" />
         </div>
       </div>
     </div>
     <!-- 新增 Canvas 容器 -->
+    <button v-if="!isGameStarted" class="start-button" @click="startGame">开始游戏</button>
     <div class="canvas-wrapper" ref="canvasContainerRef">
       <canvas ref="canvasRef"></canvas> <!-- 移除固定的 width 和 height -->
     </div>
@@ -39,6 +40,7 @@ import healPickupSound from '@/assets/sounds/音频7.WAV'; // 治疗拾取
 import damagePickupSound from '@/assets/sounds/音频6.WAV';// 伤害拾取 (使用碰撞音)
 import damageHitSound from '@/assets/sounds/音频6.WAV';   // 伤害碰撞 (使用碰撞音)
 import { useWindowSize } from '@vueuse/core'; // 导入 useWindowSize
+import { useGameStore } from '@/stores/gameStore'; // <-- 新增：导入 gameStore
 import player1Head from '@/static/headPortrait/t1.jpg'; // 导入玩家1头像
 import player2Head from '@/static/headPortrait/t2.jpg'; // 导入玩家2头像
 import heartSvg from '@/static/svg/love.svg'; // <-- 新增：导入心形 SVG
@@ -80,9 +82,10 @@ const isGameStarted = ref(false); // 新增：游戏是否已开始状态
 const isShattering = ref(false); // 新增：是否正在播放碎裂动画
 // --- 修改游戏区域定义 (初始值将在 resizeCanvas 中设置) ---
 const gameArea = reactive({ centerX: 0, centerY: 0, size: 0, borderColor: 'rgba(0, 0, 0, 0.5)', borderGlow: 0 }); // 新增边框颜色和光效状态
-const shrinkRate = 0.01; // 每帧缩小的像素值
-const minAreaSize = 50; // 最小区域大小 (调整)
-const initialHp = 5;
+// --- 从 gameStore 获取配置 --- 
+const gameStore = useGameStore();
+const { initialHp, shrinkRate, minAreaSize, powerUpSpawnInterval, player1Color, player2Color, damagePowerUpColor, healPowerUpColor } = gameStore.config;
+// --------------------------
 
 interface Ball {
   id: number; // 区分玩家
@@ -114,11 +117,11 @@ const player2 = ref<Ball | null>(null); // 使用 ref
 const powerUps = reactive<PowerUp[]>([]);
 const bloodParticles = reactive<BloodParticle[]>([]); // 新增：流血粒子数组
 const shatterParticles = reactive<ShatterParticle[]>([]); // 新增：碎裂粒子数组
-const powerUpSpawnInterval = 5000; // 道具生成间隔 (ms)
+// const powerUpSpawnInterval = 5000; // 道具生成间隔 (ms) <-- 使用 store 中的值
 let lastPowerUpSpawnTime = 0;
 
-const playerColors = ['#4682B4', '#FF6347']; // 玩家1蓝色, 玩家2红色
-const powerUpColors = { damage: '#FFD700', heal: '#32CD32' }; // 伤害黄色, 治疗绿色
+// const playerColors = ['#4682B4', '#FF6347']; // 玩家1蓝色, 玩家2红色 <-- 使用 store 中的值
+// const powerUpColors = { damage: '#FFD700', heal: '#32CD32' }; // 伤害黄色, 治疗绿色 <-- 使用 store 中的值
 
 // const colors = ['#FF6347', '#4682B4', '#32CD32', '#FFD700', '#6A5ACD', '#FF69B4', '#00CED1'];
 
@@ -131,6 +134,17 @@ function getRandomNumber(min: number, max: number): number {
 }
 
 // --- 修改初始化逻辑 (不再直接设置尺寸) ---
+function startGame() {
+  if (!canvasRef.value || !canvasContainerRef.value) return;
+  const { width, height } = canvasContainerRef.value.getBoundingClientRect();
+  initGame(width, height);
+  isGameStarted.value = true;
+  // 点击开始后生成道具
+  spawnPowerUp();
+  // 开始游戏循环
+  animationFrameId = requestAnimationFrame(gameLoop);
+}
+
 function initGame(canvasWidth: number, canvasHeight: number) {
   gameOver.value = false;
   winner.value = null;
@@ -151,11 +165,11 @@ function initGame(canvasWidth: number, canvasHeight: number) {
     id: 1,
     x: gameArea.centerX - gameArea.size / 4, // 调整初始位置
     y: gameArea.centerY,
-    baseRadius: radius, // 存储基础半径
-    radius, // 当前半径
-    dx: getRandomNumber(2, 5) * (canvasWidth / 800), // 增加初始速度范围
-    dy: getRandomNumber(-5, 5) * (canvasHeight / 600), // 增加初始速度范围
-    color: playerColors[0],
+    baseRadius: radius * gameStore.config.player1OuterRadius, // 应用外圈半径比例
+    radius: radius * gameStore.config.player1OuterRadius, // 当前半径
+    dx: getRandomNumber(3, 6) * (canvasWidth / 800), // 增加初始速度范围
+    dy: getRandomNumber(-6, 6) * (canvasHeight / 600), // 增加初始速度范围
+    color: player1Color, // <-- 使用 store 中的颜色
     hp: initialHp,
     hasDamagePowerUp: false,
   };
@@ -163,11 +177,11 @@ function initGame(canvasWidth: number, canvasHeight: number) {
     id: 2,
     x: gameArea.centerX + gameArea.size / 4, // 调整初始位置
     y: gameArea.centerY,
-    baseRadius: radius, // 存储基础半径
-    radius, // 当前半径
-    dx: getRandomNumber(-5, -2) * (canvasWidth / 800), // 增加初始速度范围
-    dy: getRandomNumber(-5, 5) * (canvasHeight / 600), // 增加初始速度范围
-    color: playerColors[1],
+    baseRadius: radius * gameStore.config.player2OuterRadius, // 应用外圈半径比例
+    radius: radius * gameStore.config.player2OuterRadius, // 当前半径
+    dx: getRandomNumber(-6, -3) * (canvasWidth / 800), // 增加初始速度范围
+    dy: getRandomNumber(-6, 6) * (canvasHeight / 600), // 增加初始速度范围
+    color: player2Color, // <-- 使用 store 中的颜色
     hp: initialHp,
     hasDamagePowerUp: false,
   };
@@ -235,7 +249,7 @@ function spawnPowerUp() {
       y,
       radius,
       type,
-      color: powerUpColors[type],
+      color: type === 'damage' ? damagePowerUpColor : healPowerUpColor, // <-- 使用 store 中的颜色
       ...(type === 'damage' ? { rotation: 0 } : {}), // 初始化伤害道具旋转角度
     });
   }
@@ -254,15 +268,47 @@ function drawPowerUp(powerUp: PowerUp) {
 
   // 根据道具类型绘制不同内容
   if (powerUp.type === 'damage') {
-    // 绘制旋转的尖刺星形 (保持不变，但使用道具半径)
-    ctx.save(); // 保存当前状态
-    ctx.translate(powerUp.x, powerUp.y); // 移动到道具中心
-    ctx.rotate(powerUp.rotation || 0); // 旋转
-    ctx.translate(-powerUp.x, -powerUp.y); // 移回原位
-
-    drawSpikeShape(ctx, powerUp.x, powerUp.y, powerUp.radius, powerUpColors.damage); // 使用道具半径和伤害颜色
-
-    ctx.restore(); // 恢复状态
+    // 使用配置中的伤害道具图片
+    if (gameStore.config.spikeItemImage) {
+      const tempImg = new Image();
+      tempImg.src = gameStore.config.spikeItemImage;
+      
+      if (tempImg.complete) {
+        // 如果图片已加载完成，直接绘制
+        ctx.save();
+        ctx.translate(powerUp.x, powerUp.y);
+        ctx.rotate(globalRotation);
+        ctx.translate(-powerUp.x, -powerUp.y);
+        const drawSize = powerUp.radius * 2;
+        ctx.drawImage(tempImg, powerUp.x - powerUp.radius, powerUp.y - powerUp.radius, drawSize, drawSize);
+        ctx.restore();
+      } else {
+        // 如果图片未加载完成，添加加载事件
+        tempImg.onload = () => {
+          if (!ctx) return;
+          ctx.save();
+          ctx.translate(powerUp.x, powerUp.y);
+          ctx.rotate(globalRotation);
+          ctx.translate(-powerUp.x, -powerUp.y);
+          const drawSize = powerUp.radius * 2;
+          ctx.drawImage(tempImg, powerUp.x - powerUp.radius, powerUp.y - powerUp.radius, drawSize, drawSize);
+          ctx.restore();
+        };
+        // 后备方案：如果图片未加载，可以绘制一个简单的圆圈
+        ctx.beginPath();
+        ctx.arc(powerUp.x, powerUp.y, powerUp.radius, 0, Math.PI * 2);
+        ctx.fillStyle = damagePowerUpColor;
+        ctx.fill();
+        ctx.closePath();
+      }
+    } else {
+      // 如果没有配置图片，绘制默认圆圈
+      ctx.beginPath();
+      ctx.arc(powerUp.x, powerUp.y, powerUp.radius, 0, Math.PI * 2);
+      ctx.fillStyle = damagePowerUpColor;
+      ctx.fill();
+      ctx.closePath();
+    }
 
   } else if (powerUp.type === 'heal') {
     // <-- 修改：绘制心形图片 -->
@@ -273,7 +319,7 @@ function drawPowerUp(powerUp: PowerUp) {
         // 后备方案：如果图片未加载，可以绘制一个简单的圆圈或不绘制
         ctx.beginPath();
         ctx.arc(powerUp.x, powerUp.y, powerUp.radius, 0, Math.PI * 2);
-        ctx.fillStyle = powerUpColors.heal; // 使用治疗道具颜色
+        ctx.fillStyle = healPowerUpColor; // <-- 使用 store 中的颜色
         ctx.fill();
         ctx.closePath();
     }
@@ -400,22 +446,74 @@ function shrinkBoundary() {
     // 中心点不变，无需调整物体位置
 }
 
-// --- 修改绘制小球逻辑 (绘制同心圆或尖刺，准备头像替换) ---
+// --- 修改绘制小球逻辑 (绘制同心圆或尖刺，使用配置的图片) ---
 function drawBall(ball: Ball) {
   if (!ctx) return;
 
   const drawInnerContent = () => {
     if (!ctx) return; // Add null check
-    const targetImage = ball.id === 1 ? player1Image.value : player2Image.value;
-    const innerRadius = ball.radius * 0.8;
-
-    if (targetImage) {
-      // 如果图片已加载，绘制图片
+    // 使用配置中的内圈半径比例
+    const innerRadiusRatio = ball.id === 1 ? gameStore.config.player1InnerRadius : gameStore.config.player2InnerRadius;
+    const innerRadius = ball.radius * innerRadiusRatio;
+    
+    // 优先使用配置中的自定义图片，如果没有则使用默认头像
+    const customImage = ball.id === 1 ? gameStore.config.player1Image : gameStore.config.player2Image;
+    const defaultImage = ball.id === 1 ? player1Image.value : player2Image.value;
+    
+    // 如果有自定义图片，创建并使用临时图片对象
+    if (customImage) {
+      const tempImg = new Image();
+      tempImg.src = customImage;
+      console.log('ball.hasDamagePowerUp:', ball.hasDamagePowerUp ,gameStore.config.gearImage);
+      
+      if (tempImg.complete) {
+        // 如果图片已加载完成，直接绘制
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, innerRadius, 0, Math.PI * 2);
+        ctx.clip(); // 裁剪绘制区域为圆形
+        
+        // 绘制尖刺状态外圈
+        console.log('ball.hasDamagePowerUp:', ball.hasDamagePowerUp ,gameStore.config.gearImage);
+        if (ball.hasDamagePowerUp && gameStore.config.gearImage) {
+          const gearImg = new Image();
+          gearImg.src = gameStore.config.gearImage;
+          if (gearImg.complete) {
+            ctx.drawImage(gearImg, ball.x - ball.radius, ball.y - ball.radius, ball.radius * 2, ball.radius * 2);
+          } else {
+            gearImg.onload = () => {
+              ctx?.drawImage(gearImg, ball.x - ball.radius, ball.y - ball.radius, ball.radius * 2, ball.radius * 2);
+            };
+          }
+        }
+        ctx.drawImage(tempImg, ball.x - innerRadius, ball.y - innerRadius, innerRadius * 2, innerRadius * 2);
+        ctx.restore();
+      } else {
+        // 如果图片未加载完成，添加加载事件
+        tempImg.onload = () => {
+          if (!ctx) return;
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(ball.x, ball.y, innerRadius, 0, Math.PI * 2);
+          ctx.clip();
+          ctx.drawImage(tempImg, ball.x - innerRadius, ball.y - innerRadius, innerRadius * 2, innerRadius * 2);
+          ctx.restore();
+        };
+        // 同时绘制后备内圆
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, innerRadius, 0, Math.PI * 2);
+        const darkerColor = darkenColor(ball.color, 0.3);
+        ctx.fillStyle = darkerColor;
+        ctx.fill();
+        ctx.closePath();
+      }
+    } else if (defaultImage) {
+      // 使用默认头像
       ctx.save();
       ctx.beginPath();
       ctx.arc(ball.x, ball.y, innerRadius, 0, Math.PI * 2);
       ctx.clip(); // 裁剪绘制区域为圆形
-      ctx.drawImage(targetImage, ball.x - innerRadius, ball.y - innerRadius, innerRadius * 2, innerRadius * 2);
+      ctx.drawImage(defaultImage, ball.x - innerRadius, ball.y - innerRadius, innerRadius * 2, innerRadius * 2);
       ctx.restore();
     } else {
       // 图片未加载，绘制深色内圆作为后备
@@ -429,17 +527,32 @@ function drawBall(ball: Ball) {
   };
 
   if (ball.hasDamagePowerUp) {
+    console.log('ball.获取尖刺道具:', ball.hasDamagePowerUp);
     // 持有伤害道具：绘制旋转尖刺外圈 + 内部内容
-    // 1. 绘制旋转的尖刺外圈 (替换原来的外圆)
     ctx.save();
     ctx.translate(ball.x, ball.y);
     ctx.rotate(globalRotation); // 使用全局旋转变量
     ctx.translate(-ball.x, -ball.y);
-    // 使用玩家颜色绘制尖刺，半径为外圆半径
-    drawSpikeShape(ctx, ball.x, ball.y, ball.radius, ball.color);
+    
+    // 优先使用gear.png图片作为外圈
+    if (gameStore.config.gearImage) {
+      const gearImg = new Image();
+      gearImg.src = gameStore.config.gearImage;
+      if (gearImg.complete) {
+        ctx.drawImage(gearImg, ball.x - ball.radius, ball.y - ball.radius, ball.radius * 2, ball.radius * 2);
+      } else {
+        gearImg.onload = () => {
+          ctx?.drawImage(gearImg, ball.x - ball.radius, ball.y - ball.radius, ball.radius * 2, ball.radius * 2);
+        };
+      }
+    } else {
+      // 如果没有gear图片，使用玩家颜色绘制尖刺
+      drawSpikeShape(ctx, ball.x, ball.y, ball.radius, ball.color);
+    }
+    
     ctx.restore();
-
-    // 2. 绘制内部内容 (图片或后备内圆) - 移动到尖刺之后绘制
+    
+    // 绘制内部内容 (图片或后备内圆)
     drawInnerContent();
 
   } else {
@@ -730,11 +843,11 @@ function checkGameOver() {
     if (gameOver.value) return;
     if (player1.value && player1.value.hp <= 0) { // 使用 .value
         gameOver.value = true;
-        winner.value = '玩家2';
+        winner.value = gameStore.config.player2Name;
         cancelAnimationFrame(animationFrameId);
     } else if (player2.value && player2.value.hp <= 0) { // 使用 .value
         gameOver.value = true;
-        winner.value = '玩家1';
+        winner.value = gameStore.config.player1Name;
         cancelAnimationFrame(animationFrameId);
     }
 }
@@ -823,7 +936,7 @@ const resizeCanvas = () => {
       // 清除旧的动画帧
       cancelAnimationFrame(animationFrameId);
       // 重新初始化游戏
-      initGame(newWidth, newHeight);
+      // initGame(newWidth, newHeight);
       // 重新开始绘制循环
       draw();
   }
@@ -869,14 +982,38 @@ onMounted(() => {
       })();
       // -------------------------
       // 初始调整一次画布大小 (移动到 async IIFE 内部)
-      // resizeCanvas();
+      resizeCanvas();
     } else {
       console.error('无法获取 2D 上下文');
     }
   } else {
     console.error('Canvas 元素或容器未找到');
   }
+
+  // 确保不会自动调用startGame()
+  // 移除所有可能导致游戏自动开始的代码
+  // 初始化时不启动游戏循环
 });
+
+// --- 新增游戏循环函数 ---
+function gameLoop() {
+  if (!ctx || gameOver.value) return;
+  
+  // 清除画布
+  ctx.clearRect(0, 0, canvasRef.value?.width || 0, canvasRef.value?.height || 0);
+  
+  // 更新游戏状态
+  // updateGameState();
+  
+  // 绘制游戏元素
+  drawGameArea();
+  if (player1.value) drawBall(player1.value);
+  if (player2.value) drawBall(player2.value);
+  powerUps.forEach(drawPowerUp);
+  
+  // 继续循环
+  animationFrameId = requestAnimationFrame(gameLoop);
+}
 
 // --- onUnmounted (无变化) ---
 onUnmounted(() => {
@@ -897,6 +1034,7 @@ onUnmounted(() => {
   max-width: 800px; /* 限制最大宽度 */
   margin: 0 auto; /* 居中 */
   box-sizing: border-box; /* 包含 padding */
+  color: #fff;
 }
 
 /* 新增 HP 条样式 */
@@ -906,6 +1044,26 @@ onUnmounted(() => {
   width: 100%; /* 宽度自适应 */
   max-width: 600px; /* 限制最大宽度，保持与画布协调 */
   margin-bottom: 15px; /* 在 canvas 上方留出间距 */
+}
+
+.start-button {
+  padding: 10px 20px;
+  font-size: 18px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+}
+
+.start-button:hover {
+  background-color: #45a049;
 }
 
 .player-hp-bar {

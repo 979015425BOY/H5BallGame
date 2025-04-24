@@ -10,11 +10,11 @@ const routes = [
   //   name: 'BallGame',
   //   component: BallGame
   // },
-  {
-    path: '/icon-manager',
-    name: 'IconManager',
-    component: IconManager
-  },
+  // {
+  //   path: '/icon-manager',
+  //   name: 'IconManager',
+  //   component: IconManager
+  // },
   {
     path: '/game-config',
     name: 'GameConfig',

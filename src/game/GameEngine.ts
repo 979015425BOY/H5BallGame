@@ -532,18 +532,19 @@ console.log('监测边界')
   private createHeartItem() {
     if (this.heartItem) return
 
-    // 暂时禁用爱心道具生成
-    // return;
-
-    // const itemSize = 50 // 统一尺寸为50
-    // 使用增强随机性的方法获取位置
     const pos = this.getRandomPowerUpPosition();
-
+    
+    // 移除旧爱心道具（如果存在）
+    if (this.heartItem) {
+      Matter.World.remove(this.engine.world, this.heartItem);
+      this.heartItem = null;
+    }
+    
     this.heartItem = createHeartItem(pos.x, pos.y);
-
+    
     // 将爱心道具添加到世界
     Matter.World.add(this.engine.world, this.heartItem)
-
+    
     console.log('Heart item created at', pos.x, pos.y)
   }
 
@@ -1144,7 +1145,7 @@ console.log('监测边界')
   public async setBallImage(ball: Matter.Body, imageUrl: string) {
     try {
       const image = await this.loadImage(imageUrl);
-      ball.render.sprite = { texture: imageUrl }; // 使用sprite属性存储图片
+      ball.render.sprite = { texture: imageUrl, xScale: 0.1, yScale: 0.1 }; // 使用sprite属性存储图片
     } catch (error) {
       console.error('图片加载失败:', error);
       return null;
